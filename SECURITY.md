@@ -60,3 +60,21 @@ materialililil is designed with security in mind:
 - electron-updater verifies release signatures
 - Update artifacts are signed with the repository owner's key
 - The app checks `api.github.com` — no custom update server
+
+## Code Signing Status
+
+**Current Status:** The app is **not code-signed**.
+
+- **Why?** Code signing requires paid certificates ($99/year Apple Developer, 
+  $200+/year EV cert for Windows) which this open-source project doesn't currently have
+- **macOS:** You'll see "Apple could not verify" warning on first launch
+- **Windows:** SmartScreen may warn about an "unrecognized app"
+- **Linux:** No code signing required
+
+**Mitigation:**
+- All source code is publicly available under MIT license
+- GitHub Actions builds are reproducible and auditable
+- You can build from source to verify the code yourself
+- Once you bypass the initial warning, your OS remembers the approval
+
+**Future:** Code signing may be added if the project gains sponsorship or funding.

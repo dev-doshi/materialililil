@@ -43,9 +43,21 @@ Everything runs client-side using your CPU. Nothing leaves your computer.
 
 1. Download the `.dmg` file
 2. Open it and drag **materialililil** to your Applications folder
-3. On first launch, macOS may show a security warning — go to
-   **System Settings → Privacy & Security** and click **Open Anyway**
-4. The app will auto-update when new versions are released
+3. **Important:** Since the app is not code-signed, macOS will block it on first launch
+
+**To bypass Gatekeeper (choose one method):**
+
+**Method 1 (Recommended):**
+- Right-click the app → Select **Open** → Click **Open** in the dialog
+- Or: Launch the app normally, then go to **System Settings → Privacy & Security** 
+  and click **Open Anyway**
+
+**Method 2 (Command Line):**
+```bash
+xattr -cr /Applications/materialililil.app
+```
+
+After the first launch, the app will open normally. Auto-updates work seamlessly.
 
 #### Windows
 
@@ -67,6 +79,10 @@ chmod +x materialililil-*.AppImage
 ```bash
 sudo dpkg -i materialililil_*_amd64.deb
 ```
+
+> **Note on Code Signing:** The app is not code-signed (requires paid Apple/Microsoft 
+> certificates). This is why you see security warnings on first launch. The app is 
+> open-source (MIT license) — you can verify the code yourself or build from source below.
 
 ---
 
