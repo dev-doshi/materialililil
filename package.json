@@ -68,8 +68,7 @@
     },
     "files": [
       "electron/**/*",
-      "out/**/*",
-      "!node_modules/**/*"
+      "out/**/*"
     ],
     "extraResources": [
       {

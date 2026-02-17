@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell, session } = require("electron");
 const path = require("path");
 const serve = require("electron-serve");
 const { autoUpdater } = require("electron-updater");
@@ -101,6 +101,18 @@ async function createWindow() {
   // Graceful show
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
+  });
+
+  // Set Content Security Policy
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        "Content-Security-Policy": [
+          "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://api.github.com",
+        ],
+      },
+    });
   });
 
   // Open external links in default browser
