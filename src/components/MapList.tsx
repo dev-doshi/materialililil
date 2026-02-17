@@ -305,7 +305,7 @@ export default function MapList() {
                 }
               }}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2 text-left transition-colors cursor-pointer group",
+                "w-full flex items-center gap-3 px-3 py-2 text-left transition-colors cursor-pointer group relative",
                 "hover:bg-zinc-800/50 border-l-2",
                 isSelected
                   ? "bg-zinc-800/80 border-amber-500"
@@ -348,7 +348,7 @@ export default function MapList() {
                 )}
               </div>
 
-              {/* Info */}
+              {/* Info — takes all remaining space */}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-zinc-200 truncate">
                   {config.label}
@@ -358,29 +358,36 @@ export default function MapList() {
                 </p>
               </div>
 
-              {/* Actions — visible on hover */}
-              <div className="flex items-center gap-0.5 flex-shrink-0">
-                {map.generating ? (
-                  <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin" />
-                ) : map.generated ? (
+              {/* Status indicator when not hovered */}
+              {map.generating && (
+                <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin flex-shrink-0" />
+              )}
+
+              {/* Actions — overlay on hover so they don't steal space from the label */}
+              <div className={cn(
+                "absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 px-1 rounded-md",
+                "opacity-0 group-hover:opacity-100 transition-all",
+                "bg-zinc-800/95 backdrop-blur-sm shadow-sm border border-zinc-700/40"
+              )}>
+                {map.generated ? (
                   <>
                     <button
                       onClick={(e) => { e.stopPropagation(); downloadMap(config.type); }}
-                      className="p-1 rounded hover:bg-zinc-700 text-zinc-500 hover:text-zinc-200 opacity-0 group-hover:opacity-100 transition-all"
+                      className="p-1 rounded hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors"
                       title="Download"
                     >
                       <Download className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); generateSingleMap(config.type); }}
-                      className="p-1 rounded hover:bg-zinc-700 text-zinc-500 hover:text-zinc-200 opacity-0 group-hover:opacity-100 transition-all"
+                      className="p-1 rounded hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors"
                       title="Regenerate"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); clearSingleMap(config.type); }}
-                      className="p-1 rounded hover:bg-zinc-700 text-zinc-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                      className="p-1 rounded hover:bg-zinc-700 text-zinc-400 hover:text-red-400 transition-colors"
                       title="Clear this map"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -389,16 +396,15 @@ export default function MapList() {
                 ) : (
                   <button
                     onClick={(e) => { e.stopPropagation(); generateSingleMap(config.type); }}
-                    className="p-1 rounded hover:bg-zinc-700 text-zinc-600 hover:text-amber-400 opacity-0 group-hover:opacity-100 transition-all"
+                    className="p-1 rounded hover:bg-zinc-700 text-zinc-500 hover:text-amber-400 transition-colors"
                     title="Generate"
                   >
                     <Wand2 className="w-3.5 h-3.5" />
                   </button>
                 )}
-                {/* More button */}
                 <button
                   onClick={(e) => { e.stopPropagation(); handleContextMenu(e, config.type); }}
-                  className="p-1 rounded hover:bg-zinc-700 text-zinc-600 hover:text-zinc-300 opacity-0 group-hover:opacity-100 transition-all"
+                  className="p-1 rounded hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300 transition-colors"
                   title="More actions"
                 >
                   <MoreHorizontal className="w-3.5 h-3.5" />
