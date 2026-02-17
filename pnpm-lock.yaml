@@ -20,6 +20,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      electron-serve:
+        specifier: ^3.0.1
+        version: 3.0.1
       electron-updater:
         specifier: ^6.7.3
         version: 6.7.3
@@ -84,9 +87,6 @@ importers:
       electron-builder:
         specifier: ^26.7.0
         version: 26.7.0(electron-builder-squirrel-windows@26.7.0)
-      electron-serve:
-        specifier: ^3.0.1
-        version: 3.0.1
       eslint:
         specifier: ^9
         version: 9.39.2(jiti@2.6.1)
