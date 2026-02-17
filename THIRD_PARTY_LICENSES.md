@@ -150,13 +150,6 @@ This document was last updated on 2026-02-17.
 - **Repository:** https://github.com/electron-userland/electron-builder
 - **License text:** https://github.com/electron-userland/electron-builder/blob/master/LICENSE
 
-### electron-serve
-- **Version:** 3.0.1
-- **License:** MIT
-- **Copyright:** Sindre Sorhus
-- **Repository:** https://github.com/sindresorhus/electron-serve
-- **License text:** https://github.com/sindresorhus/electron-serve/blob/main/license
-
 ### Tailwind CSS
 - **Version:** 4.x
 - **License:** MIT
