@@ -1,40 +1,10 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, protocol, net } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
 const path = require("path");
 const { autoUpdater } = require("electron-updater");
-const fs = require("fs");
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 const isDev = !app.isPackaged;
 const APP_NAME = "materialililil";
-
-// ─── Static File Serving (replaces electron-serve) ────────────────────────────
-// Register a custom protocol to serve the Next.js static export
-function setupStaticServing() {
-  protocol.handle("app", (request) => {
-    const url = new URL(request.url);
-    let filePath = url.pathname;
-
-    // Default to index.html
-    if (filePath === "/" || filePath === "") {
-      filePath = "/index.html";
-    }
-
-    const basePath = path.join(__dirname, "../out");
-    let fullPath = path.join(basePath, filePath);
-
-    // If the file doesn't exist and doesn't have an extension, try .html
-    if (!fs.existsSync(fullPath) && !path.extname(fullPath)) {
-      fullPath = fullPath + ".html";
-    }
-
-    // If still doesn't exist, serve index.html (SPA fallback)
-    if (!fs.existsSync(fullPath)) {
-      fullPath = path.join(basePath, "index.html");
-    }
-
-    return net.fetch("file://" + fullPath);
-  });
-}
 
 // ─── Auto-Updater Setup ──────────────────────────────────────────────────────
 autoUpdater.autoDownload = true;
@@ -140,8 +110,8 @@ async function createWindow() {
     mainWindow.loadURL("http://localhost:3000");
     mainWindow.webContents.openDevTools({ mode: "detach" });
   } else {
-    // In production, load from custom protocol
-    mainWindow.loadURL("app://-/");
+    // In production, load the static export directly
+    mainWindow.loadFile(path.join(__dirname, "../out/index.html"));
   }
 
   setupAutoUpdater(mainWindow);
@@ -159,12 +129,7 @@ ipcMain.handle("app:checkForUpdates", () => {
 });
 
 // ─── App Lifecycle ───────────────────────────────────────────────────────────
-app.on("ready", () => {
-  if (!isDev) {
-    setupStaticServing();
-  }
-  createWindow();
-});
+app.on("ready", createWindow);
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
@@ -182,7 +147,7 @@ app.on("activate", () => {
 app.on("web-contents-created", (_, contents) => {
   contents.on("will-navigate", (event, url) => {
     // Allow navigating within the app
-    const appUrl = isDev ? "http://localhost:3000" : "app://";
+    const appUrl = isDev ? "http://localhost:3000" : "file://";
     if (!url.startsWith(appUrl)) {
       event.preventDefault();
       shell.openExternal(url);
