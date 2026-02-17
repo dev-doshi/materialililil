@@ -1,10 +1,35 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  shell,
+  protocol,
+  net,
+} = require("electron");
 const path = require("path");
+const fs = require("fs");
 const { autoUpdater } = require("electron-updater");
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 const isDev = !app.isPackaged;
 const APP_NAME = "materialililil";
+
+// ─── Register Custom Protocol (MUST be before app.ready) ─────────────────────
+// Registering as privileged gives "app://" a proper origin with localStorage,
+// sessionStorage, cookies, and all web APIs — unlike file:// which is sandboxed.
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "app",
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true,
+    },
+  },
+]);
 
 // ─── Auto-Updater Setup ──────────────────────────────────────────────────────
 autoUpdater.autoDownload = true;
@@ -72,6 +97,73 @@ function setupAutoUpdater(win) {
   setInterval(() => autoUpdater.checkForUpdates(), 30 * 60 * 1000);
 }
 
+// ─── Static File Serving via Custom Protocol ─────────────────────────────────
+function setupStaticServing() {
+  const outDir = path.join(__dirname, "../out");
+
+  // MIME types for static files
+  const MIME_TYPES = {
+    ".html": "text/html",
+    ".js": "application/javascript",
+    ".css": "text/css",
+    ".json": "application/json",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".svg": "image/svg+xml",
+    ".ico": "image/x-icon",
+    ".webp": "image/webp",
+    ".woff": "font/woff",
+    ".woff2": "font/woff2",
+    ".ttf": "font/ttf",
+    ".eot": "application/vnd.ms-fontobject",
+    ".map": "application/json",
+    ".webmanifest": "application/manifest+json",
+  };
+
+  protocol.handle("app", (request) => {
+    // Parse the URL path — app://./path or app://-/path
+    const url = new URL(request.url);
+    let filePath = decodeURIComponent(url.pathname);
+
+    // Remove leading slash
+    if (filePath.startsWith("/")) filePath = filePath.slice(1);
+
+    // Default to index.html
+    if (!filePath || filePath === "") filePath = "index.html";
+
+    const fullPath = path.join(outDir, filePath);
+
+    // Security: prevent directory traversal
+    if (!fullPath.startsWith(outDir)) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    // Try the exact file, then with .html extension
+    let resolvedPath = fullPath;
+    if (!fs.existsSync(resolvedPath)) {
+      if (fs.existsSync(resolvedPath + ".html")) {
+        resolvedPath = resolvedPath + ".html";
+      } else if (
+        fs.existsSync(path.join(resolvedPath, "index.html"))
+      ) {
+        resolvedPath = path.join(resolvedPath, "index.html");
+      } else {
+        // Fallback to index.html for SPA routing
+        resolvedPath = path.join(outDir, "index.html");
+      }
+    }
+
+    const ext = path.extname(resolvedPath).toLowerCase();
+    const mimeType = MIME_TYPES[ext] || "application/octet-stream";
+
+    return net.fetch(`file://${resolvedPath}`, {
+      headers: { "Content-Type": mimeType },
+    });
+  });
+}
+
 // ─── Window Creation ─────────────────────────────────────────────────────────
 let mainWindow = null;
 
@@ -89,7 +181,7 @@ async function createWindow() {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
     },
     show: false, // Show when ready to avoid flash
   });
@@ -110,8 +202,8 @@ async function createWindow() {
     mainWindow.loadURL("http://localhost:3000");
     mainWindow.webContents.openDevTools({ mode: "detach" });
   } else {
-    // In production, load the static export directly
-    mainWindow.loadFile(path.join(__dirname, "../out/index.html"));
+    // In production, load via custom privileged protocol
+    mainWindow.loadURL("app://./index.html");
   }
 
   setupAutoUpdater(mainWindow);
@@ -129,7 +221,10 @@ ipcMain.handle("app:checkForUpdates", () => {
 });
 
 // ─── App Lifecycle ───────────────────────────────────────────────────────────
-app.on("ready", createWindow);
+app.on("ready", () => {
+  if (!isDev) setupStaticServing();
+  createWindow();
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
@@ -147,7 +242,7 @@ app.on("activate", () => {
 app.on("web-contents-created", (_, contents) => {
   contents.on("will-navigate", (event, url) => {
     // Allow navigating within the app
-    const appUrl = isDev ? "http://localhost:3000" : "file://";
+    const appUrl = isDev ? "http://localhost:3000" : "app://";
     if (!url.startsWith(appUrl)) {
       event.preventDefault();
       shell.openExternal(url);
