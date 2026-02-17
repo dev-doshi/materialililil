@@ -53,7 +53,17 @@ jobs:
         if: matrix.platform == 'mac'
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          cp "dist/materialililil-${VERSION}-universal.dmg" "dist/materialililil-universal.dmg"
+          echo "Looking for macOS artifacts..."
+          ls -la dist/*.dmg || true
+          # Try different possible filename patterns
+          if [ -f "dist/materialililil-${VERSION}-universal.dmg" ]; then
+            cp "dist/materialililil-${VERSION}-universal.dmg" "dist/materialililil-universal.dmg"
+          elif [ -f "dist/materialililil-${VERSION}.dmg" ]; then
+            cp "dist/materialililil-${VERSION}.dmg" "dist/materialililil-universal.dmg"
+          else
+            DMG=$(find dist -name "*.dmg" -type f | head -1)
+            [ -n "$DMG" ] && cp "$DMG" "dist/materialililil-universal.dmg"
+          fi
           gh release upload "${GITHUB_REF_NAME}" \
             "dist/materialililil-universal.dmg" \
             --clobber
@@ -70,8 +80,22 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          cp "dist/materialililil-${VERSION}.AppImage" "dist/materialililil.AppImage"
-          cp "dist/materialililil_${VERSION}_amd64.deb" "dist/materialililil.deb"
+          echo "Looking for Linux artifacts..."
+          ls -la dist/*.AppImage dist/*.deb || true
+          # AppImage
+          if [ -f "dist/materialililil-${VERSION}.AppImage" ]; then
+            cp "dist/materialililil-${VERSION}.AppImage" "dist/materialililil.AppImage"
+          else
+            APPIMAGE=$(find dist -name "*.AppImage" -type f | head -1)
+            [ -n "$APPIMAGE" ] && cp "$APPIMAGE" "dist/materialililil.AppImage"
+          fi
+          # Debian package
+          if [ -f "dist/materialililil_${VERSION}_amd64.deb" ]; then
+            cp "dist/materialililil_${VERSION}_amd64.deb" "dist/materialililil.deb"
+          else
+            DEB=$(find dist -name "*.deb" -type f | head -1)
+            [ -n "$DEB" ] && cp "$DEB" "dist/materialililil.deb"
+          fi
           gh release upload "${GITHUB_REF_NAME}" \
             "dist/materialililil.AppImage" \
             "dist/materialililil.deb" \
@@ -90,7 +114,22 @@ jobs:
         shell: bash
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          cp "dist/materialililil-Setup-${VERSION}.exe" "dist/materialililil-Setup.exe"
+          # NSIS creates files with spaces, handle both x64 and arm64
+          ls -la dist/*.exe || true
+          # Find and copy the main installer (x64 is typically the default)
+          if [ -f "dist/materialililil Setup ${VERSION}.exe" ]; then
+            cp "dist/materialililil Setup ${VERSION}.exe" "dist/materialililil-Setup.exe"
+          elif [ -f "dist/materialililil-${VERSION}.exe" ]; then
+            cp "dist/materialililil-${VERSION}.exe" "dist/materialililil-Setup.exe"
+          else
+            echo "Looking for any .exe installer..."
+            find dist -name "*.exe" -type f
+            # Use the first x64 installer we find
+            INSTALLER=$(find dist -name "*Setup*.exe" -o -name "materialililil*.exe" | head -1)
+            if [ -n "$INSTALLER" ]; then
+              cp "$INSTALLER" "dist/materialililil-Setup.exe"
+            fi
+          fi
           gh release upload "${GITHUB_REF_NAME}" \
             "dist/materialililil-Setup.exe" \
             --clobber
