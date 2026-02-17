@@ -12,6 +12,7 @@ import UploadZone from '@/components/UploadZone';
 import { useKeyboardShortcuts } from '@/components/KeyboardShortcuts';
 import ToastContainer from '@/components/ToastContainer';
 import LegalNotice from '@/components/LegalNotice';
+import UpdateStatus from '@/components/UpdateStatus';
 import dynamic from 'next/dynamic';
 
 const DynamicViewport3D = dynamic(() => import('@/components/Viewport3D'), {
@@ -98,6 +99,7 @@ export default function Home() {
       )}
       <ToastContainer />
       <LegalNotice />
+      <UpdateStatus />
     </div>
   );
 }

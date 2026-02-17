@@ -34,16 +34,31 @@ protocol.registerSchemesAsPrivileged([
 // ─── Auto-Updater Setup ──────────────────────────────────────────────────────
 autoUpdater.autoDownload = true;
 autoUpdater.autoInstallOnAppQuit = true;
-autoUpdater.logger = require("electron").app.getLogger?.() || console;
+autoUpdater.forceCodeSigning = false; // App is unsigned — skip code-sign verification
+
+// Log to both console and a file in the app's userData directory
+const logPath = path.join(app.getPath("userData"), "updater.log");
+function logUpdate(msg) {
+  const line = `[${new Date().toISOString()}] ${msg}\n`;
+  console.log("[AutoUpdater]", msg);
+  try { fs.appendFileSync(logPath, line); } catch {}
+}
 
 function setupAutoUpdater(win) {
-  if (isDev) return; // Skip updates in development
+  if (isDev) {
+    logUpdate("Skipping auto-updater in dev mode");
+    return;
+  }
+
+  logUpdate(`Auto-updater starting. Current version: ${app.getVersion()}`);
 
   autoUpdater.on("checking-for-update", () => {
+    logUpdate("Checking for update...");
     win.webContents.send("updater:status", { status: "checking" });
   });
 
   autoUpdater.on("update-available", (info) => {
+    logUpdate(`Update available: v${info.version}`);
     win.webContents.send("updater:status", {
       status: "available",
       version: info.version,
@@ -51,11 +66,13 @@ function setupAutoUpdater(win) {
     });
   });
 
-  autoUpdater.on("update-not-available", () => {
+  autoUpdater.on("update-not-available", (info) => {
+    logUpdate(`Up to date. Latest: v${info.version}`);
     win.webContents.send("updater:status", { status: "up-to-date" });
   });
 
   autoUpdater.on("download-progress", (progress) => {
+    logUpdate(`Download progress: ${Math.round(progress.percent)}%`);
     win.webContents.send("updater:status", {
       status: "downloading",
       percent: Math.round(progress.percent),
@@ -63,6 +80,7 @@ function setupAutoUpdater(win) {
   });
 
   autoUpdater.on("update-downloaded", (info) => {
+    logUpdate(`Update downloaded: v${info.version}`);
     win.webContents.send("updater:status", {
       status: "downloaded",
       version: info.version,
@@ -86,15 +104,24 @@ function setupAutoUpdater(win) {
   });
 
   autoUpdater.on("error", (err) => {
+    logUpdate(`ERROR: ${err?.message || err}`);
     win.webContents.send("updater:status", {
       status: "error",
       message: err?.message || "Unknown error",
     });
   });
 
-  // Check for updates every 30 minutes
-  autoUpdater.checkForUpdates();
-  setInterval(() => autoUpdater.checkForUpdates(), 30 * 60 * 1000);
+  // Initial check, then every 30 minutes
+  logUpdate("Performing initial update check...");
+  autoUpdater.checkForUpdates().catch((err) => {
+    logUpdate(`Initial check failed: ${err?.message || err}`);
+  });
+  setInterval(() => {
+    logUpdate("Periodic update check...");
+    autoUpdater.checkForUpdates().catch((err) => {
+      logUpdate(`Periodic check failed: ${err?.message || err}`);
+    });
+  }, 30 * 60 * 1000);
 }
 
 // ─── Static File Serving via Custom Protocol ─────────────────────────────────
@@ -216,8 +243,18 @@ async function createWindow() {
 // ─── IPC Handlers ────────────────────────────────────────────────────────────
 ipcMain.handle("app:getVersion", () => app.getVersion());
 ipcMain.handle("app:getPlatform", () => process.platform);
-ipcMain.handle("app:checkForUpdates", () => {
-  if (!isDev) autoUpdater.checkForUpdates();
+ipcMain.handle("app:checkForUpdates", async () => {
+  if (!isDev) {
+    logUpdate("Manual update check triggered");
+    try {
+      const result = await autoUpdater.checkForUpdates();
+      return { success: true, version: result?.updateInfo?.version };
+    } catch (err) {
+      logUpdate(`Manual check failed: ${err?.message || err}`);
+      return { success: false, error: err?.message || "Unknown error" };
+    }
+  }
+  return { success: false, error: "Auto-update disabled in dev mode" };
 });
 
 // ─── App Lifecycle ───────────────────────────────────────────────────────────
