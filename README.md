@@ -4,7 +4,7 @@ PBR texture map generator — turn any image into production-ready texture maps.
 Runs entirely on your machine. No uploads, no accounts, no servers.
 
 ![License](https://img.shields.io/github/license/dev-doshi/materialililil)
-![Version](https://img.shields.io/github/v/release/dev-doshi/materialililil?include_prereleases)
+![Version](https://img.shields.io/github/v/release/dev-doshi/materialililil)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)
 
 ---
