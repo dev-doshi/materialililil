@@ -49,14 +49,50 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Upload stable-named macOS artifacts
+        if: matrix.platform == 'mac'
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          cp "dist/materialililil-${VERSION}-universal.dmg" "dist/materialililil-universal.dmg"
+          gh release upload "${GITHUB_REF_NAME}" \
+            "dist/materialililil-universal.dmg" \
+            --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build Electron (Linux)
         if: matrix.platform == 'linux'
         run: pnpm exec electron-builder --linux --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Upload stable-named Linux artifacts
+        if: matrix.platform == 'linux'
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          cp "dist/materialililil-${VERSION}.AppImage" "dist/materialililil.AppImage"
+          cp "dist/materialililil_${VERSION}_amd64.deb" "dist/materialililil.deb"
+          gh release upload "${GITHUB_REF_NAME}" \
+            "dist/materialililil.AppImage" \
+            "dist/materialililil.deb" \
+            --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build Electron (Windows)
         if: matrix.platform == 'win'
         run: pnpm exec electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload stable-named Windows artifacts
+        if: matrix.platform == 'win'
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          cp "dist/materialililil-Setup-${VERSION}.exe" "dist/materialililil-Setup.exe"
+          gh release upload "${GITHUB_REF_NAME}" \
+            "dist/materialililil-Setup.exe" \
+            --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

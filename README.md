@@ -26,15 +26,18 @@ Everything runs client-side using your CPU. Nothing leaves your computer.
 
 ### Download (Recommended)
 
-Go to **[Releases](https://github.com/dev-doshi/materialililil/releases/latest)**
-and download the installer for your platform:
+[![Latest Release](https://img.shields.io/github/v/release/dev-doshi/materialililil?label=Download&style=for-the-badge&color=f59e0b)](https://github.com/dev-doshi/materialililil/releases/latest)
 
-| Platform | File |
-|----------|------|
-| macOS | `materialililil-x.x.x-universal.dmg` |
-| Windows | `materialililil-Setup-x.x.x.exe` |
-| Linux (AppImage) | `materialililil-x.x.x.AppImage` |
-| Linux (Debian) | `materialililil_x.x.x_amd64.deb` |
+**Quick Downloads:**
+
+| Platform | Direct Download |
+|----------|-----------------|
+| 🍎 **macOS** | [materialililil-universal.dmg](https://github.com/dev-doshi/materialililil/releases/latest/download/materialililil-universal.dmg) |
+| 🪟 **Windows** | [materialililil-Setup.exe](https://github.com/dev-doshi/materialililil/releases/latest/download/materialililil-Setup.exe) |
+| 🐧 **Linux (AppImage)** | [materialililil.AppImage](https://github.com/dev-doshi/materialililil/releases/latest/download/materialililil.AppImage) |
+| 🐧 **Linux (Debian)** | [materialililil.deb](https://github.com/dev-doshi/materialililil/releases/latest/download/materialililil.deb) |
+
+> Links automatically point to the latest version. Downloads start immediately.
 
 #### macOS
 
