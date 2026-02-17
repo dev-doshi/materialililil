@@ -1,6 +1,6 @@
 {
   "name": "materialililil",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "PBR texture map generator — turn any image into production-ready texture maps. Runs entirely on your machine.",
   "author": "Dev Doshi <devdoshi@hotmail.com>",
