@@ -84,7 +84,8 @@
     "publish": {
       "provider": "github",
       "owner": "dev-doshi",
-      "repo": "materialililil"
+      "repo": "materialililil",
+      "releaseType": "release"
     },
     "mac": {
       "category": "public.app-category.graphics-design",
