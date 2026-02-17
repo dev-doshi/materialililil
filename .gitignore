@@ -20,6 +20,16 @@
 # production
 /build
 
+# electron-builder output
+/dist/
+*.dmg
+*.exe
+*.AppImage
+*.deb
+*.rpm
+*.snap
+*.msi
+
 # misc
 .DS_Store
 *.pem

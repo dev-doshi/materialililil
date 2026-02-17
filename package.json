@@ -2,25 +2,140 @@
   "name": "materialililil",
   "version": "0.1.0",
   "private": true,
+  "description": "PBR texture map generator — turn any image into production-ready texture maps. Runs entirely on your machine.",
+  "author": "Dev Doshi <devdoshi@hotmail.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/dev-doshi/materialililil",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dev-doshi/materialililil.git"
+  },
+  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev",
+    "dev:electron": "concurrently -n next,electron \"next dev\" \"wait-on http://localhost:3000 && electron .\"",
     "build": "next build",
+    "build:electron": "next build && electron-builder",
+    "build:electron:mac": "next build && electron-builder --mac",
+    "build:electron:win": "next build && electron-builder --win",
+    "build:electron:linux": "next build && electron-builder --linux",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.5.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "electron-updater": "^6.7.3",
+    "fflate": "^0.8.2",
+    "file-saver": "^2.0.5",
+    "lucide-react": "^0.564.0",
     "next": "16.1.6",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "react-dropzone": "^15.0.0",
+    "recharts": "^3.7.0",
+    "tailwind-merge": "^3.4.1",
+    "three": "^0.182.0",
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/file-saver": "^2.0.7",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.182.0",
+    "concurrently": "^9.2.1",
+    "electron": "^40.4.1",
+    "electron-builder": "^26.7.0",
+    "electron-serve": "^3.0.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wait-on": "^8.0.5"
+  },
+  "build": {
+    "appId": "com.devdoshi.materialililil",
+    "productName": "materialililil",
+    "copyright": "Copyright © 2026 Dev Doshi. MIT License.",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**/*",
+      "out/**/*",
+      "!node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "THIRD_PARTY_LICENSES.md",
+        "to": "THIRD_PARTY_LICENSES.md"
+      },
+      {
+        "from": "LICENSE",
+        "to": "LICENSE"
+      }
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "dev-doshi",
+      "repo": "materialililil"
+    },
+    "mac": {
+      "category": "public.app-category.graphics-design",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "darkModeSupport": true
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Graphics"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "license": "LICENSE"
+    }
   }
 }
