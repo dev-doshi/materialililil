@@ -1,6 +1,6 @@
 {
   "name": "materialililil",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "PBR texture map generator — turn any image into production-ready texture maps. Runs entirely on your machine.",
   "author": "Dev Doshi <devdoshi@hotmail.com>",
@@ -28,7 +28,6 @@
     "@react-three/fiber": "^9.5.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "electron-serve": "^3.0.1",
     "electron-updater": "^6.7.3",
     "fflate": "^0.8.2",
     "file-saver": "^2.0.5",

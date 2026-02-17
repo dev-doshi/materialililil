@@ -20,9 +20,6 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
-      electron-serve:
-        specifier: ^3.0.1
-        version: 3.0.1
       electron-updater:
         specifier: ^6.7.3
         version: 6.7.3
@@ -1524,10 +1521,6 @@ packages:
 
   electron-publish@26.6.0:
     resolution: {integrity: sha512-LsyHMMqbvJ2vsOvuWJ19OezgF2ANdCiHpIucDHNiLhuI+/F3eW98ouzWSRmXXi82ZOPZXC07jnIravY4YYwCLQ==}
-
-  electron-serve@3.0.1:
-    resolution: {integrity: sha512-o40R/CfuxT4ccpD3kK2enFghd2jgXSgI02l4p51f8f2clXC4GPKpi0JQUn1FSRGrIHWH8fjdPlRsznEyItDPLg==}
-    engines: {node: '>=20'}
 
   electron-to-chromium@1.5.286:
     resolution: {integrity: sha512-9tfDXhJ4RKFNerfjdCcZfufu49vg620741MNs26a9+bhLThdB+plgMeou98CAaHu/WATj2iHOOHTp1hWtABj2A==}
@@ -5023,8 +5016,6 @@ snapshots:
       mime: 2.6.0
     transitivePeerDependencies:
       - supports-color
-
-  electron-serve@3.0.1: {}
 
   electron-to-chromium@1.5.286: {}
 
