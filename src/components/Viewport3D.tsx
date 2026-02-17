@@ -56,66 +56,49 @@ function useDataUrlTexture(dataUrl: string | null, fallbackColor: [number, numbe
   return texture;
 }
 
-function PBRMesh({ meshType, displacementScale, normalIntensity, tileRepeat }: {
+interface SharedTextures {
+  diffuse: THREE.Texture;
+  normal: THREE.Texture;
+  height: THREE.Texture;
+  roughness: THREE.Texture;
+  metallic: THREE.Texture;
+  ao: THREE.Texture;
+}
+
+function PBRMeshInstance({ meshType, displacementScale, normalIntensity, segments, textures }: {
   meshType: string;
   displacementScale: number;
   normalIntensity: number;
-  tileRepeat: number;
+  segments: number;
+  textures: SharedTextures;
 }) {
-  const maps = useAppStore((s) => s.maps);
-  const meshRef = useRef<THREE.Mesh>(null);
-
-  const diffuseTex = useDataUrlTexture(maps[MapType.Diffuse]?.dataUrl ?? null);
-  const normalTex = useDataUrlTexture(maps[MapType.Normal]?.dataUrl ?? null, [128, 128, 255]);
-  const heightTex = useDataUrlTexture(maps[MapType.Height]?.dataUrl ?? null, [128, 128, 128]);
-  const roughnessTex = useDataUrlTexture(maps[MapType.Roughness]?.dataUrl ?? null, [200, 200, 200]);
-  const metallicTex = useDataUrlTexture(maps[MapType.Metallic]?.dataUrl ?? null, [0, 0, 0]);
-  const aoTex = useDataUrlTexture(maps[MapType.AO]?.dataUrl ?? null);
-
-  // Tag diffuse texture as sRGB so Three.js handles gamma correctly
-  useEffect(() => {
-    if (diffuseTex) diffuseTex.colorSpace = THREE.SRGBColorSpace;
-  }, [diffuseTex]);
-
-  // Apply tiling repeat
-  useEffect(() => {
-    [diffuseTex, normalTex, heightTex, roughnessTex, metallicTex, aoTex].forEach((tex) => {
-      if (tex) {
-        tex.repeat.set(tileRepeat, tileRepeat);
-        tex.needsUpdate = true;
-      }
-    });
-  }, [tileRepeat, diffuseTex, normalTex, heightTex, roughnessTex, metallicTex, aoTex]);
-
-  // No auto-rotation — user controls camera via OrbitControls
-
   const geometry = useMemo(() => {
     switch (meshType) {
       case "sphere":
-        return <sphereGeometry args={[1.5, 128, 128]} />;
+        return <sphereGeometry args={[1.5, segments, segments]} />;
       case "cube":
-        return <boxGeometry args={[2, 2, 2, 64, 64, 64]} />;
+        return <boxGeometry args={[2, 2, 2, segments, segments, segments]} />;
       case "cylinder":
-        return <cylinderGeometry args={[1, 1, 2.5, 64, 64]} />;
+        return <cylinderGeometry args={[1, 1, 2.5, segments, segments]} />;
       default:
-        return <planeGeometry args={[3, 3, 128, 128]} />;
+        return <planeGeometry args={[3, 3, segments, segments]} />;
     }
-  }, [meshType]);
+  }, [meshType, segments]);
 
   const normalScaleVec = useMemo(() => new THREE.Vector2(normalIntensity, normalIntensity), [normalIntensity]);
 
   return (
-    <mesh ref={meshRef}>
+    <mesh>
       {geometry}
       <meshStandardMaterial
-        map={diffuseTex}
-        normalMap={normalTex}
-        displacementMap={heightTex}
-        roughnessMap={roughnessTex}
+        map={textures.diffuse}
+        normalMap={textures.normal}
+        displacementMap={textures.height}
+        roughnessMap={textures.roughness}
         roughness={1.0}
-        metalnessMap={metallicTex}
+        metalnessMap={textures.metallic}
         metalness={1.0}
-        aoMap={aoTex}
+        aoMap={textures.ao}
         aoMapIntensity={1.0}
         displacementScale={displacementScale}
         normalScale={normalScaleVec}
@@ -134,23 +117,86 @@ function Scene({ meshType, envPreset, displacementScale, normalIntensity, tileRe
   normalIntensity: number;
   tileRepeat: number;
 }) {
+  const maps = useAppStore((s) => s.maps);
+
+  // Create textures once — shared across all tile instances
+  const diffuseTex = useDataUrlTexture(maps[MapType.Diffuse]?.dataUrl ?? null);
+  const normalTex = useDataUrlTexture(maps[MapType.Normal]?.dataUrl ?? null, [128, 128, 255]);
+  const heightTex = useDataUrlTexture(maps[MapType.Height]?.dataUrl ?? null, [128, 128, 128]);
+  const roughnessTex = useDataUrlTexture(maps[MapType.Roughness]?.dataUrl ?? null, [200, 200, 200]);
+  const metallicTex = useDataUrlTexture(maps[MapType.Metallic]?.dataUrl ?? null, [0, 0, 0]);
+  const aoTex = useDataUrlTexture(maps[MapType.AO]?.dataUrl ?? null);
+
+  // sRGB for diffuse
+  useEffect(() => {
+    if (diffuseTex) diffuseTex.colorSpace = THREE.SRGBColorSpace;
+  }, [diffuseTex]);
+
+  // Always 1x1 repeat — tiling is shown by instancing meshes in a grid
+  useEffect(() => {
+    [diffuseTex, normalTex, heightTex, roughnessTex, metallicTex, aoTex].forEach((tex) => {
+      if (tex) {
+        tex.repeat.set(1, 1);
+        tex.needsUpdate = true;
+      }
+    });
+  }, [diffuseTex, normalTex, heightTex, roughnessTex, metallicTex, aoTex]);
+
+  const textures: SharedTextures = useMemo(() => ({
+    diffuse: diffuseTex,
+    normal: normalTex,
+    height: heightTex,
+    roughness: roughnessTex,
+    metallic: metallicTex,
+    ao: aoTex,
+  }), [diffuseTex, normalTex, heightTex, roughnessTex, metallicTex, aoTex]);
+
+  // Adaptive segments — fewer per mesh when there are many instances
+  const segments = useMemo(
+    () => Math.max(32, Math.min(128, Math.floor(192 / tileRepeat))),
+    [tileRepeat]
+  );
+
+  // Grid layout: planes tile in XY (face camera), 3D shapes tile in XZ (floor)
+  const isPlane = meshType === "plane";
+  const spacing = isPlane ? 3 : meshType === "cube" ? 2.05 : meshType === "cylinder" ? 2.05 : 3.05;
+  const offsetX = ((tileRepeat - 1) * spacing) / 2;
+  const offsetSecondary = ((tileRepeat - 1) * spacing) / 2;
+
   return (
     <>
       <ambientLight intensity={0.3} />
       <directionalLight position={[5, 5, 5]} intensity={1.5} castShadow />
       <directionalLight position={[-3, 3, -3]} intensity={0.5} />
       <pointLight position={[0, 5, 0]} intensity={0.4} />
-      <PBRMesh
-        meshType={meshType}
-        displacementScale={displacementScale}
-        normalIntensity={normalIntensity}
-        tileRepeat={tileRepeat}
-      />
+      <group>
+        {Array.from({ length: tileRepeat * tileRepeat }, (_, i) => {
+          const row = Math.floor(i / tileRepeat);
+          const col = i % tileRepeat;
+          const x = col * spacing - offsetX;
+          // Planes: tile along XY (wall facing camera)  Others: tile along XZ (floor)
+          const pos: [number, number, number] = isPlane
+            ? [x, row * spacing - offsetSecondary, 0]
+            : [x, 0, row * spacing - offsetSecondary];
+
+          return (
+            <group key={`${row}-${col}`} position={pos}>
+              <PBRMeshInstance
+                meshType={meshType}
+                displacementScale={displacementScale}
+                normalIntensity={normalIntensity}
+                segments={segments}
+                textures={textures}
+              />
+            </group>
+          );
+        })}
+      </group>
       <OrbitControls
         enableDamping
         dampingFactor={0.05}
         minDistance={1}
-        maxDistance={20}
+        maxDistance={50}
         enablePan
       />
       <Environment preset={envPreset as "studio" | "city" | "sunset" | "dawn" | "night" | "warehouse" | "forest" | "apartment" | "lobby" | "park"} background={false} />
