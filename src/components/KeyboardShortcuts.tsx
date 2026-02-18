@@ -11,15 +11,16 @@ export function useKeyboardShortcuts() {
   const generateAllMaps = useAppStore((s) => s.generateAllMaps);
   const generateUngeneratedMaps = useAppStore((s) => s.generateUngeneratedMaps);
   const generateSingleMap = useAppStore((s) => s.generateSingleMap);
-  const downloadAllMaps = useAppStore((s) => s.downloadAllMaps);
-  const downloadMap = useAppStore((s) => s.downloadMap);
+  const exportSingleMap = useAppStore((s) => s.exportSingleMap);
   const clearSingleMap = useAppStore((s) => s.clearSingleMap);
   const toggleLeftPanel = useAppStore((s) => s.toggleLeftPanel);
   const toggleRightPanel = useAppStore((s) => s.toggleRightPanel);
   const selectMap = useAppStore((s) => s.selectMap);
   const toggleFullMaterial = useAppStore((s) => s.toggleFullMaterial);
   const saveProject = useAppStore((s) => s.saveProject);
-  const loadProject = useAppStore((s) => s.loadProject);
+  const saveProjectAs = useAppStore((s) => s.saveProjectAs);
+  const openProject = useAppStore((s) => s.openProject);
+  const setExportModalOpen = useAppStore((s) => s.setExportModalOpen);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -70,18 +71,11 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      // Ctrl+D — Download all generated
-      if (ctrl && e.key === "d") {
-        e.preventDefault();
-        downloadAllMaps();
-        return;
-      }
-
-      // Ctrl+Shift+D — Download current map
+      // Ctrl+Shift+D — Export current map
       if (ctrl && shift && e.key === "D") {
         e.preventDefault();
         const selected = useAppStore.getState().selectedMap;
-        if (selected) downloadMap(selected);
+        if (selected) exportSingleMap(selected);
         return;
       }
 
@@ -99,10 +93,24 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      // Ctrl+O — Load Project
+      // Ctrl+Shift+S — Save Project As
+      if (ctrl && shift && e.key === "S") {
+        e.preventDefault();
+        saveProjectAs();
+        return;
+      }
+
+      // Ctrl+O — Open Project
       if (ctrl && !shift && e.key === "o") {
         e.preventDefault();
-        loadProject();
+        openProject();
+        return;
+      }
+
+      // Ctrl+E — Open Export Modal
+      if (ctrl && !shift && e.key === "e") {
+        e.preventDefault();
+        setExportModalOpen(true);
         return;
       }
 
@@ -177,7 +185,7 @@ export function useKeyboardShortcuts() {
         return;
       }
     },
-    [undo, redo, generateAllMaps, generateUngeneratedMaps, generateSingleMap, downloadAllMaps, downloadMap, clearSingleMap, toggleLeftPanel, toggleRightPanel, selectMap, toggleFullMaterial, saveProject, loadProject]
+    [undo, redo, generateAllMaps, generateUngeneratedMaps, generateSingleMap, exportSingleMap, clearSingleMap, toggleLeftPanel, toggleRightPanel, selectMap, toggleFullMaterial, saveProject, saveProjectAs, openProject, setExportModalOpen]
   );
 
   useEffect(() => {
@@ -211,11 +219,12 @@ export default function KeyboardShortcutsHelp({ open, onClose }: { open: boolean
     ]},
     { category: "Project", items: [
       { keys: "⌘S", label: "Save Project" },
-      { keys: "⌘O", label: "Load Project" },
+      { keys: "⌘⇧S", label: "Save Project As" },
+      { keys: "⌘O", label: "Open Project" },
     ]},
-    { category: "Downloads", items: [
-      { keys: "⌘D", label: "Download All Generated" },
-      { keys: "⌘⇧D", label: "Download Current Map" },
+    { category: "Export", items: [
+      { keys: "⌘E", label: "Open Export" },
+      { keys: "⌘⇧D", label: "Export Current Map" },
     ]},
     { category: "Editing", items: [
       { keys: "Delete", label: "Clear Selected Map" },

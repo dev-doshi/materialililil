@@ -5,6 +5,31 @@ All notable changes to materialililil will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-02-18
+
+### Added
+- **Project file format (.matlil):** ZIP-based project files containing source image, all generated maps, and full parameter state
+- **Native file dialogs:** Save, Save As, Open, and Export all use native OS file pickers in Electron
+- **Folder export mode:** Export all maps directly to a folder (Electron only) alongside existing ZIP export
+- **Dirty state tracking:** Unsaved changes indicator (amber dot) in title bar and toolbar
+- **Window title updates:** Shows current project filename and modification status
+- **⌘E keyboard shortcut:** Opens Export modal from anywhere
+- **⌘⇧S keyboard shortcut:** Save Project As
+- **Reveal in Finder/Explorer:** After exporting, quickly open the output location
+- **Export modal accessible from anywhere:** MapList batch actions, QuickGenerate, and keyboard shortcuts can all open the export modal
+- **Browser fallback:** All save/export features work in browser mode with standard download dialogs
+
+### Changed
+- **"Download" → "Export" terminology:** All UI labels now consistently use "Export" for map output
+- **Export modal uses store state:** Any component can trigger the export modal via the centralized store
+- **Single map export uses native dialog:** Export individual maps with a file picker instead of auto-downloading
+- **Batch actions menu:** "Download All" replaced with "Export All" which opens the full export modal
+
+### Removed
+- **file-saver dependency:** Replaced with native Electron IPC file writing and browser Blob URL downloads
+- **localStorage-only project save:** Replaced with proper file-based save/load (localStorage used only as crash recovery autosave)
+- **Sequential multi-download:** No longer fires 13 individual file downloads — use the export modal instead
+
 ## [0.1.4] — 2026-02-17
 
 ### Fixed

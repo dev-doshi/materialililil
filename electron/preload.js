@@ -14,4 +14,21 @@ contextBridge.exposeInMainWorld("electronAPI", {
     // Return unsubscribe function
     return () => ipcRenderer.removeListener("updater:status", handler);
   },
+
+  // File dialogs
+  showSaveDialog: (options) => ipcRenderer.invoke("dialog:save", options),
+  showOpenDialog: (options) => ipcRenderer.invoke("dialog:open", options),
+
+  // File I/O
+  writeFile: (filePath, data) => ipcRenderer.invoke("file:write", filePath, data),
+  readFile: (filePath) => ipcRenderer.invoke("file:read", filePath),
+  writeFiles: (folderPath, files) =>
+    ipcRenderer.invoke("file:writeMultiple", folderPath, files),
+
+  // Window
+  setWindowTitle: (title) => ipcRenderer.invoke("window:setTitle", title),
+
+  // Shell
+  showItemInFolder: (filePath) =>
+    ipcRenderer.invoke("shell:showItemInFolder", filePath),
 });

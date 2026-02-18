@@ -5,14 +5,14 @@ import { useAppStore } from "@/store/appStore";
 import { MAP_CONFIGS, MapType } from "@/types/maps";
 import { MAP_ICONS } from "@/types/mapIcons";
 import { cn } from "@/lib/utils";
-import { Loader2, Sparkles, Wand2, Zap, Building, CheckSquare, Square, Download } from "lucide-react";
+import { Loader2, Sparkles, Wand2, Zap, Building, CheckSquare, Square, PackageOpen } from "lucide-react";
 
 export default function QuickGenerate() {
   const maps = useAppStore((s) => s.maps);
   const generateSingleMap = useAppStore((s) => s.generateSingleMap);
   const generateSelectedMaps = useAppStore((s) => s.generateSelectedMaps);
   const generateUngeneratedMaps = useAppStore((s) => s.generateUngeneratedMaps);
-  const downloadAllMaps = useAppStore((s) => s.downloadAllMaps);
+  const setExportModalOpen = useAppStore((s) => s.setExportModalOpen);
   const generating = useAppStore((s) => s.generating);
   const sourceImageData = useAppStore((s) => s.sourceImageData);
 
@@ -82,11 +82,11 @@ export default function QuickGenerate() {
           )}
           {generatedCount > 0 && (
             <button
-              onClick={downloadAllMaps}
+              onClick={() => setExportModalOpen(true)}
               className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-              title={`Download ${generatedCount} maps`}
+              title={`Export ${generatedCount} maps`}
             >
-              <Download className="w-3 h-3" />
+              <PackageOpen className="w-3 h-3" />
               {generatedCount}
             </button>
           )}

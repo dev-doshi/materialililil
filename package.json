@@ -1,6 +1,6 @@
 {
   "name": "materialililil",
-  "version": "0.1.11",
+  "version": "0.2.0",
   "private": true,
   "description": "PBR texture map generator — turn any image into production-ready texture maps. Runs entirely on your machine.",
   "author": "Dev Doshi <devdoshi@hotmail.com>",
@@ -30,7 +30,6 @@
     "clsx": "^2.1.1",
     "electron-updater": "^6.7.3",
     "fflate": "^0.8.2",
-    "file-saver": "^2.0.5",
     "lucide-react": "^0.564.0",
     "next": "16.1.6",
     "react": "19.2.3",
@@ -43,7 +42,6 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/file-saver": "^2.0.7",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

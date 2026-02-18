@@ -7,13 +7,13 @@ import { MAP_ICONS } from "@/types/mapIcons";
 import { cn } from "@/lib/utils";
 import {
   Eye,
-  Download,
+  Share,
   RefreshCw,
   Loader2,
   Trash2,
   MoreHorizontal,
   Wand2,
-  DownloadCloud,
+  PackageOpen,
   Copy,
   RotateCcw,
   ChevronDown,
@@ -34,7 +34,7 @@ function MapContextMenu({
   const ref = useRef<HTMLDivElement>(null);
   const maps = useAppStore((s) => s.maps);
   const generateSingleMap = useAppStore((s) => s.generateSingleMap);
-  const downloadMap = useAppStore((s) => s.downloadMap);
+  const exportSingleMap = useAppStore((s) => s.exportSingleMap);
   const clearSingleMap = useAppStore((s) => s.clearSingleMap);
   const selectMap = useAppStore((s) => s.selectMap);
   const copyParamsToAll = useAppStore((s) => s.copyParamsToAll);
@@ -78,9 +78,9 @@ function MapContextMenu({
     { kind: "separator" },
     {
       kind: "action",
-      label: "Download",
-      icon: Download,
-      onClick: () => { downloadMap(type); onClose(); },
+      label: "Export",
+      icon: Share,
+      onClick: () => { exportSingleMap(type); onClose(); },
       show: !!map.generated,
     },
     {
@@ -134,7 +134,7 @@ function BatchActionsDropdown({ onClose }: { onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const maps = useAppStore((s) => s.maps);
   const generateUngeneratedMaps = useAppStore((s) => s.generateUngeneratedMaps);
-  const downloadAllMaps = useAppStore((s) => s.downloadAllMaps);
+  const setExportModalOpen = useAppStore((s) => s.setExportModalOpen);
   const clearAllMaps = useAppStore((s) => s.clearAllMaps);
   const resetAllParams = useAppStore((s) => s.resetAllParams);
 
@@ -170,9 +170,9 @@ function BatchActionsDropdown({ onClose }: { onClose: () => void }) {
     },
     {
       kind: "action",
-      label: `Download All (${generatedCount})`,
-      icon: DownloadCloud,
-      onClick: () => { downloadAllMaps(); onClose(); },
+      label: `Export All (${generatedCount})`,
+      icon: PackageOpen,
+      onClick: () => { setExportModalOpen(true); onClose(); },
       show: generatedCount > 0,
     },
     {
@@ -227,7 +227,7 @@ export default function MapList() {
   const selectedMap = useAppStore((s) => s.selectedMap);
   const selectMap = useAppStore((s) => s.selectMap);
   const generateSingleMap = useAppStore((s) => s.generateSingleMap);
-  const downloadMap = useAppStore((s) => s.downloadMap);
+  const exportSingleMap = useAppStore((s) => s.exportSingleMap);
   const clearSingleMap = useAppStore((s) => s.clearSingleMap);
   const sourceImageData = useAppStore((s) => s.sourceImageData);
   const toggleMapEnabled = useAppStore((s) => s.toggleMapEnabled);
@@ -370,11 +370,11 @@ export default function MapList() {
                 {map.generated ? (
                   <>
                     <button
-                      onClick={(e) => { e.stopPropagation(); downloadMap(config.type); }}
+                      onClick={(e) => { e.stopPropagation(); exportSingleMap(config.type); }}
                       className="p-1 rounded hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors"
-                      title="Download"
+                      title="Export"
                     >
-                      <Download className="w-3.5 h-3.5" />
+                      <Share className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); generateSingleMap(config.type); }}

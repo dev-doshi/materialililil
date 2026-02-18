@@ -34,7 +34,8 @@ import KeyboardShortcutsHelp from "./KeyboardShortcuts";
 
 export default function TopBar() {
   const saveProject = useAppStore((s) => s.saveProject);
-  const loadProject = useAppStore((s) => s.loadProject);
+  const saveProjectAs = useAppStore((s) => s.saveProjectAs);
+  const openProject = useAppStore((s) => s.openProject);
   const viewMode = useAppStore((s) => s.viewMode);
   const setViewMode = useAppStore((s) => s.setViewMode);
   const generateAllMaps = useAppStore((s) => s.generateAllMaps);
@@ -45,6 +46,8 @@ export default function TopBar() {
   const progress = useAppStore((s) => s.progress);
   const sourceImageData = useAppStore((s) => s.sourceImageData);
   const sourceFileName = useAppStore((s) => s.sourceFileName);
+  const isDirty = useAppStore((s) => s.isDirty);
+  const projectPath = useAppStore((s) => s.projectPath);
   const undo = useAppStore((s) => s.undo);
   const redo = useAppStore((s) => s.redo);
   const leftPanelOpen = useAppStore((s) => s.leftPanelOpen);
@@ -53,12 +56,12 @@ export default function TopBar() {
   const toggleRightPanel = useAppStore((s) => s.toggleRightPanel);
   const setSourceImage = useAppStore((s) => s.setSourceImage);
   const generateUngeneratedMaps = useAppStore((s) => s.generateUngeneratedMaps);
-  const downloadAllMaps = useAppStore((s) => s.downloadAllMaps);
   const clearSource = useAppStore((s) => s.clearSource);
   const resetAllParams = useAppStore((s) => s.resetAllParams);
   const maps = useAppStore((s) => s.maps);
+  const exportModalOpen = useAppStore((s) => s.exportModalOpen);
+  const setExportModalOpen = useAppStore((s) => s.setExportModalOpen);
 
-  const [exportOpen, setExportOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [clearDropdown, setClearDropdown] = useState(false);
   const clearRef = useRef<HTMLDivElement>(null);
@@ -109,11 +112,18 @@ export default function TopBar() {
           {/* Separator */}
           <div className="w-px h-6 bg-zinc-700" />
 
-          {/* File name */}
+          {/* File name + dirty indicator */}
           {sourceFileName && (
-            <span className="text-xs text-zinc-400 max-w-32 truncate hidden md:block">
-              {sourceFileName}
-            </span>
+            <div className="flex items-center gap-1 max-w-48 hidden md:flex">
+              {isDirty && (
+                <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" title="Unsaved changes" />
+              )}
+              <span className="text-xs text-zinc-400 truncate" title={projectPath || sourceFileName}>
+                {projectPath
+                  ? projectPath.split("/").pop()?.split("\\").pop()?.replace(/\.[^.]+$/, "")
+                  : sourceFileName}
+              </span>
+            </div>
           )}
 
           {/* Panel toggles */}
@@ -199,14 +209,14 @@ export default function TopBar() {
             </button>
           )}
 
-          {/* Download All */}
+          {/* Export */}
           {generatedCount > 0 && (
             <button
-              onClick={downloadAllMaps}
+              onClick={() => setExportModalOpen(true)}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 transition-colors"
-              title={`Download all ${generatedCount} generated maps`}
+              title={`Export ${generatedCount} generated maps (⌘E)`}
             >
-              <Download className="w-3.5 h-3.5" />
+              <Package className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{generatedCount}</span>
             </button>
           )}
@@ -315,14 +325,14 @@ export default function TopBar() {
         <div className="flex items-center gap-1.5">
           {/* Export */}
           <button
-            onClick={() => setExportOpen(true)}
+            onClick={() => setExportModalOpen(true)}
             disabled={!sourceImageData}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
               "bg-green-600 text-white hover:bg-green-500",
               "disabled:opacity-40 disabled:cursor-not-allowed"
             )}
-            title="Export generated maps as a ZIP file for use in 3D software"
+            title="Export generated maps (⌘E)"
           >
             <Package className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Export</span>
@@ -330,19 +340,34 @@ export default function TopBar() {
 
           {/* Save project */}
           <button
-            onClick={saveProject}
+            onClick={() => saveProject()}
             disabled={!sourceImageData}
-            className="p-1.5 rounded-md hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Save project to browser storage (Ctrl+S)"
+            className={cn(
+              "p-1.5 rounded-md hover:bg-zinc-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
+              isDirty ? "text-amber-400 hover:text-amber-300" : "text-zinc-400 hover:text-zinc-200"
+            )}
+            title={projectPath ? "Save project (⌘S)" : "Save project as... (⌘S)"}
           >
             <Save className="w-4 h-4" />
           </button>
 
-          {/* Load project */}
+          {/* Save As (only show if already saved — otherwise Save acts as Save As) */}
+          {projectPath && (
+            <button
+              onClick={() => saveProjectAs()}
+              disabled={!sourceImageData}
+              className="p-1.5 rounded-md hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Save project as... (⌘⇧S)"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          )}
+
+          {/* Open project */}
           <button
-            onClick={loadProject}
+            onClick={() => openProject()}
             className="p-1.5 rounded-md hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200"
-            title="Load saved project from browser storage (Ctrl+O)"
+            title="Open project (⌘O)"
           >
             <FolderOpen className="w-4 h-4" />
           </button>
@@ -378,7 +403,7 @@ export default function TopBar() {
         </div>
       )}
 
-      <ExportModal open={exportOpen} onClose={() => setExportOpen(false)} />
+      <ExportModal open={exportModalOpen} onClose={() => setExportModalOpen(false)} />
       <KeyboardShortcutsHelp open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </>
   );

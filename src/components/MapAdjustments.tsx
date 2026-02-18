@@ -5,7 +5,7 @@ import { useAppStore } from "@/store/appStore";
 import { MAP_CONFIGS, MAP_CONTROL_DEFS, MapType } from "@/types/maps";
 import { MAP_ICONS } from "@/types/mapIcons";
 import { cn } from "@/lib/utils";
-import { RotateCcw, RefreshCw, Copy, Download, Trash2, Wand2, HelpCircle, ChevronDown, Zap } from "lucide-react";
+import { RotateCcw, RefreshCw, Copy, Share, Trash2, Wand2, HelpCircle, ChevronDown, Zap } from "lucide-react";
 
 function Slider({
   label,
@@ -129,7 +129,7 @@ export default function MapAdjustments() {
   const generateSingleMap = useAppStore((s) => s.generateSingleMap);
   const sourceImageData = useAppStore((s) => s.sourceImageData);
   const copyParamsToAll = useAppStore((s) => s.copyParamsToAll);
-  const downloadMap = useAppStore((s) => s.downloadMap);
+  const exportSingleMap = useAppStore((s) => s.exportSingleMap);
   const clearSingleMap = useAppStore((s) => s.clearSingleMap);
   const liveUpdate = useAppStore((s) => s.liveUpdate);
   const toggleLiveUpdate = useAppStore((s) => s.toggleLiveUpdate);
@@ -361,13 +361,13 @@ export default function MapAdjustments() {
         {map.generated && (
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => downloadMap(selectedMap)}
+              onClick={() => exportSingleMap(selectedMap)}
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
                 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-              title="Download this map"
+              title="Export this map"
             >
-              <Download className="w-3.5 h-3.5" />
-              Download
+              <Share className="w-3.5 h-3.5" />
+              Export
             </button>
             <button
               onClick={() => clearSingleMap(selectedMap)}

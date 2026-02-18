@@ -1,11 +1,18 @@
 import { create } from "zustand";
 import { MapType, MapParams, GeneratedMap, getMapDefaults, TexturePreset, getDependentMaps } from "@/types/maps";
 import { generateMap } from "@/engine/mapGenerators";
-import { imageToImageData, imageDataToDataUrl, downscaleImageData, upscaleImageData } from "@/engine/algorithms";
+import { imageToImageData, imageDataToDataUrl, imageDataToBlob, downscaleImageData, upscaleImageData } from "@/engine/algorithms";
+import { getElectronAPI } from "@/types/electron";
+import { zipSync, unzipSync, strToU8 } from "fflate";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const PROJECT_STORAGE_KEY = "materialililil-project";
+const AUTOSAVE_STORAGE_KEY = "materialililil-autosave";
 const MAX_HISTORY = 30;
+const PROJECT_FILE_EXTENSION = "matlil";
+const PROJECT_FILE_FILTER = { name: "materialililil Project", extensions: [PROJECT_FILE_EXTENSION] };
+const IMAGE_FILE_FILTER = { name: "Images", extensions: ["png", "jpg", "jpeg", "webp"] };
+const PROJECT_FORMAT_VERSION = 2;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface HistoryEntry {
@@ -31,6 +38,10 @@ interface AppState {
   // Generated maps
   maps: Record<MapType, GeneratedMap>;
 
+  // Project state
+  projectPath: string | null;
+  isDirty: boolean;
+
   // UI state
   selectedMap: MapType | null;
   viewMode: "2d" | "3d" | "grid";
@@ -43,6 +54,7 @@ interface AppState {
   bottomPanelTab: "thumbnails" | "tiling";
   rightPanelTab: "adjustments" | "generate" | "effects" | "inspect";
   liveUpdate: boolean;
+  exportModalOpen: boolean;
   toasts: Toast[];
 
   // History
@@ -77,10 +89,16 @@ interface AppState {
   copyParamsToAll: (sourceType: MapType) => void;
   resetAllParams: () => void;
   duplicateMap: (from: MapType, to: MapType) => void;
-  saveProject: () => void;
-  loadProject: () => boolean;
+  // Project save/load
+  saveProject: () => Promise<void>;
+  saveProjectAs: () => Promise<void>;
+  openProject: () => Promise<void>;
+  // Export
+  exportSingleMap: (type: MapType) => Promise<void>;
+  setExportModalOpen: (open: boolean) => void;
   addToast: (message: string, type?: "info" | "success" | "warning" | "error") => void;
   dismissToast: (id: string) => void;
+  markDirty: () => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -102,6 +120,217 @@ function createInitialMaps(): Record<MapType, GeneratedMap> {
 
 let _toastCounter = 0;
 
+// ─── Project File Helpers ────────────────────────────────────────────────────
+
+/** Convert a dataURL to a Uint8Array of PNG bytes */
+function dataUrlToBytes(dataUrl: string): Uint8Array {
+  const base64 = dataUrl.split(",")[1];
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+/** Convert an ImageData to PNG Uint8Array via canvas */
+async function imageDataToPngBytes(imageData: ImageData): Promise<Uint8Array> {
+  const blob = await imageDataToBlob(imageData, "image/png");
+  const buffer = await blob.arrayBuffer();
+  return new Uint8Array(buffer);
+}
+
+/** Build a .matlil project file (ZIP) and return as Uint8Array */
+async function buildProjectFile(state: AppState): Promise<Uint8Array> {
+  const files: Record<string, Uint8Array> = {};
+
+  // Manifest
+  const manifest = {
+    version: PROJECT_FORMAT_VERSION,
+    app: "materialililil",
+    sourceFileName: state.sourceFileName,
+    sourceWidth: state.sourceWidth,
+    sourceHeight: state.sourceHeight,
+    maps: {} as Record<string, { params: MapParams; enabled: boolean; generated: boolean }>,
+  };
+
+  for (const type of Object.values(MapType)) {
+    const map = state.maps[type];
+    manifest.maps[type] = {
+      params: map.params,
+      enabled: map.enabled,
+      generated: map.generated,
+    };
+  }
+
+  files["manifest.json"] = strToU8(JSON.stringify(manifest, null, 2));
+
+  // Source image
+  if (state.sourceDataUrl) {
+    files["source.png"] = dataUrlToBytes(state.sourceDataUrl);
+  }
+
+  // Generated maps (save as PNG for instant load)
+  for (const type of Object.values(MapType)) {
+    const map = state.maps[type];
+    if (map.generated && map.imageData) {
+      files[`maps/${type}.png`] = await imageDataToPngBytes(map.imageData);
+    }
+  }
+
+  return zipSync(files, { level: 6 });
+}
+
+/** Load a .matlil project file from a Uint8Array buffer */
+async function loadProjectFile(
+  buffer: Uint8Array,
+  set: (partial: Partial<AppState> | ((s: AppState) => Partial<AppState>)) => void,
+  get: () => AppState
+): Promise<boolean> {
+  try {
+    const unzipped = unzipSync(buffer);
+
+    // Read manifest
+    const manifestBytes = unzipped["manifest.json"];
+    if (!manifestBytes) throw new Error("Invalid project file: missing manifest");
+    const manifest = JSON.parse(new TextDecoder().decode(manifestBytes));
+    if (!manifest.version || !manifest.sourceFileName) throw new Error("Invalid manifest");
+
+    // Read source image
+    const sourceBytes = unzipped["source.png"];
+    if (!sourceBytes) throw new Error("Invalid project file: missing source image");
+
+    // Convert source bytes to blob URL, then load as Image
+    const sourceBlob = new Blob([sourceBytes.buffer as ArrayBuffer], { type: "image/png" });
+    const sourceUrl = URL.createObjectURL(sourceBlob);
+
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = async () => {
+        const imageData = imageToImageData(img, 2048);
+        const maps = createInitialMaps();
+
+        // Restore map params and enabled state
+        for (const type of Object.values(MapType)) {
+          if (manifest.maps[type]) {
+            maps[type].params = { ...maps[type].params, ...manifest.maps[type].params };
+            maps[type].enabled = manifest.maps[type].enabled ?? true;
+          }
+        }
+
+        // Load generated map images
+        const mapLoadPromises: Promise<void>[] = [];
+        for (const type of Object.values(MapType)) {
+          const mapBytes = unzipped[`maps/${type}.png`];
+          if (mapBytes && manifest.maps[type]?.generated) {
+            mapLoadPromises.push(
+              new Promise((mapResolve) => {
+                const mapBlob = new Blob([mapBytes.buffer as ArrayBuffer], { type: "image/png" });
+                const mapUrl = URL.createObjectURL(mapBlob);
+                const mapImg = new Image();
+                mapImg.onload = () => {
+                  const canvas = document.createElement("canvas");
+                  canvas.width = mapImg.width;
+                  canvas.height = mapImg.height;
+                  const ctx = canvas.getContext("2d")!;
+                  ctx.drawImage(mapImg, 0, 0);
+                  const mapImageData = ctx.getImageData(0, 0, mapImg.width, mapImg.height);
+                  const mapDataUrl = imageDataToDataUrl(mapImageData);
+                  maps[type].imageData = mapImageData;
+                  maps[type].dataUrl = mapDataUrl;
+                  maps[type].generated = true;
+                  URL.revokeObjectURL(mapUrl);
+                  mapResolve();
+                };
+                mapImg.onerror = () => {
+                  URL.revokeObjectURL(mapUrl);
+                  mapResolve(); // Skip failed maps silently
+                };
+                mapImg.src = mapUrl;
+              })
+            );
+          }
+        }
+
+        await Promise.all(mapLoadPromises);
+
+        // Convert source blob URL to dataURL for storage
+        const reader = new FileReader();
+        reader.onload = () => {
+          const sourceDataUrl = reader.result as string;
+          URL.revokeObjectURL(sourceUrl);
+
+          set({
+            sourceImage: img,
+            sourceImageData: imageData,
+            sourceDataUrl: sourceDataUrl,
+            sourceFileName: manifest.sourceFileName || "restored",
+            sourceWidth: manifest.sourceWidth || img.naturalWidth,
+            sourceHeight: manifest.sourceHeight || img.naturalHeight,
+            maps,
+            selectedMap: MapType.Height,
+            isDirty: false,
+            history: [],
+            historyIndex: -1,
+          });
+
+          // Update window title
+          updateWindowTitle(get().projectPath, manifest.sourceFileName, false);
+          get().addToast("Project opened", "success");
+          resolve(true);
+        };
+        reader.readAsDataURL(sourceBlob);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(sourceUrl);
+        get().addToast("Failed to load project source image", "error");
+        resolve(false);
+      };
+      img.src = sourceUrl;
+    });
+  } catch (err) {
+    console.error("Failed to load project:", err);
+    get().addToast(`Failed to load project: ${(err as Error).message}`, "error");
+    return false;
+  }
+}
+
+/** Update window title with project name and dirty state */
+function updateWindowTitle(projectPath: string | null, fileName: string, isDirty: boolean) {
+  const api = getElectronAPI();
+  if (!api) return;
+  const name = projectPath
+    ? projectPath.split("/").pop()?.split("\\").pop()?.replace(`.${PROJECT_FILE_EXTENSION}`, "") || fileName
+    : fileName || "Untitled";
+  const dirty = isDirty ? " •" : "";
+  api.setWindowTitle(`${name}${dirty} — materialililil`);
+}
+
+/** Auto-save project params to localStorage as crash recovery */
+function autoSaveToLocalStorage(state: AppState) {
+  try {
+    const data = {
+      version: 1,
+      sourceFileName: state.sourceFileName,
+      sourceWidth: state.sourceWidth,
+      sourceHeight: state.sourceHeight,
+      sourceDataUrl: state.sourceDataUrl,
+      projectPath: state.projectPath,
+      maps: {} as Record<string, { params: MapParams; enabled: boolean; generated: boolean; dataUrl: string | null }>,
+    };
+    for (const type of Object.values(MapType)) {
+      const map = state.maps[type];
+      data.maps[type] = {
+        params: map.params,
+        enabled: map.enabled,
+        generated: map.generated,
+        dataUrl: map.dataUrl,
+      };
+    }
+    localStorage.setItem(AUTOSAVE_STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // Silent fail — localStorage may be full
+  }
+}
+
 // Progressive rendering: version tracking & timer management
 const _genVersions: Record<string, number> = {};
 const _fullResTimers: Record<string, ReturnType<typeof setTimeout> | undefined> = {};
@@ -116,6 +345,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   sourceWidth: 0,
   sourceHeight: 0,
   maps: createInitialMaps(),
+  projectPath: null,
+  isDirty: false,
   selectedMap: null,
   viewMode: "2d",
   showFullMaterial: false,
@@ -127,6 +358,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   bottomPanelTab: "thumbnails",
   rightPanelTab: "adjustments",
   liveUpdate: true,
+  exportModalOpen: false,
   toasts: [],
   history: [],
   historyIndex: -1,
@@ -147,7 +379,10 @@ export const useAppStore = create<AppState>((set, get) => ({
             sourceHeight: img.naturalHeight,
             maps: createInitialMaps(),
             selectedMap: MapType.Height,
+            projectPath: null,
+            isDirty: true,
           });
+          updateWindowTitle(null, file.name, true);
           get().addToast(`Loaded ${file.name} (${img.naturalWidth}×${img.naturalHeight})`, "success");
           resolve();
         };
@@ -415,7 +650,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       progress: 0,
       history: [],
       historyIndex: -1,
+      projectPath: null,
+      isDirty: false,
     });
+    updateWindowTitle(null, "", false);
   },
 
   toggleLeftPanel: () => set((s) => ({ leftPanelOpen: !s.leftPanelOpen })),
@@ -513,24 +751,43 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     const newHistory = [...history.slice(0, historyIndex + 1), entry].slice(-MAX_HISTORY);
     set({ history: newHistory, historyIndex: newHistory.length - 1 });
+
+    // Mark project as dirty on every history-saving change
+    get().markDirty();
   },
 
   downloadMap: (type: MapType) => {
-    const map = get().maps[type];
+    const state = get();
+    const map = state.maps[type];
     if (!map.dataUrl) return;
-    const a = document.createElement("a");
-    a.href = map.dataUrl;
-    a.download = `${get().sourceFileName.replace(/\.[^.]+$/, "")}_${type}.png`;
-    a.click();
+
+    const api = getElectronAPI();
+    if (api) {
+      // In Electron, use native save dialog
+      get().exportSingleMap(type);
+    } else {
+      // Browser fallback: anchor click
+      const a = document.createElement("a");
+      a.href = map.dataUrl;
+      a.download = `${state.sourceFileName.replace(/\.[^.]+$/, "")}_${type}.png`;
+      a.click();
+    }
   },
 
   downloadAllMaps: () => {
     const state = get();
-    const generated = Object.values(MapType).filter((t) => state.maps[t].generated && state.maps[t].dataUrl);
-    if (generated.length === 0) return;
-    generated.forEach((type, i) => {
-      setTimeout(() => get().downloadMap(type), i * 200);
-    });
+    const api = getElectronAPI();
+    if (api) {
+      // In Electron, not used — ExportModal handles everything
+      get().addToast("Use Export (⌘E) to export all maps", "info");
+    } else {
+      // Browser fallback
+      const generated = Object.values(MapType).filter((t) => state.maps[t].generated && state.maps[t].dataUrl);
+      if (generated.length === 0) return;
+      generated.forEach((type, i) => {
+        setTimeout(() => get().downloadMap(type), i * 200);
+      });
+    }
   },
 
   copyParamsToAll: (sourceType: MapType) => {
@@ -583,71 +840,187 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveHistory();
   },
 
-  saveProject: () => {
+  saveProject: async () => {
     const state = get();
-    try {
-      const project = {
-        version: 1,
-        sourceFileName: state.sourceFileName,
-        sourceWidth: state.sourceWidth,
-        sourceHeight: state.sourceHeight,
-        sourceDataUrl: state.sourceDataUrl,
-        maps: {} as Record<string, { params: MapParams; enabled: boolean; generated: boolean; dataUrl: string | null }>,
-      };
-      for (const type of Object.values(MapType)) {
-        const map = state.maps[type];
-        project.maps[type] = {
-          params: map.params,
-          enabled: map.enabled,
-          generated: map.generated,
-          dataUrl: map.dataUrl,
-        };
+    if (!state.sourceImageData) return;
+
+    const api = getElectronAPI();
+
+    if (api) {
+      // Electron: save to current path, or show Save As if new
+      if (state.projectPath) {
+        try {
+          const projectData = await buildProjectFile(state);
+          const result = await api.writeFile(state.projectPath, projectData.buffer.slice(projectData.byteOffset, projectData.byteOffset + projectData.byteLength) as ArrayBuffer);
+          if (result.success) {
+            set({ isDirty: false });
+            updateWindowTitle(state.projectPath, state.sourceFileName, false);
+            get().addToast("Project saved", "success");
+          } else {
+            get().addToast(`Save failed: ${result.error}`, "error");
+          }
+        } catch (err) {
+          get().addToast(`Save failed: ${(err as Error).message}`, "error");
+        }
+      } else {
+        // No existing path — show Save As
+        await get().saveProjectAs();
       }
-      localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(project));
-      get().addToast("Project saved to browser storage", "success");
-    } catch (err) {
-      console.error("Failed to save project:", err);
-      get().addToast("Failed to save — storage may be full", "error");
+    } else {
+      // Browser fallback: download as .matlil file
+      try {
+        const projectData = await buildProjectFile(state);
+        const blob = new Blob([projectData.buffer as ArrayBuffer], { type: "application/octet-stream" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${state.sourceFileName.replace(/\.[^.]+$/, "") || "project"}.${PROJECT_FILE_EXTENSION}`;
+        a.click();
+        URL.revokeObjectURL(url);
+        set({ isDirty: false });
+        get().addToast("Project downloaded", "success");
+      } catch (err) {
+        get().addToast(`Save failed: ${(err as Error).message}`, "error");
+      }
+    }
+
+    // Also auto-save to localStorage
+    autoSaveToLocalStorage(get());
+  },
+
+  saveProjectAs: async () => {
+    const state = get();
+    if (!state.sourceImageData) return;
+
+    const api = getElectronAPI();
+
+    if (api) {
+      const defaultName = `${state.sourceFileName.replace(/\.[^.]+$/, "") || "project"}.${PROJECT_FILE_EXTENSION}`;
+      const dialogResult = await api.showSaveDialog({
+        title: "Save Project As",
+        defaultPath: defaultName,
+        filters: [PROJECT_FILE_FILTER],
+      });
+
+      if (dialogResult.canceled || !dialogResult.filePath) return;
+
+      try {
+        const projectData = await buildProjectFile(state);
+        const result = await api.writeFile(
+          dialogResult.filePath,
+          projectData.buffer.slice(projectData.byteOffset, projectData.byteOffset + projectData.byteLength) as ArrayBuffer
+        );
+        if (result.success) {
+          set({ projectPath: dialogResult.filePath, isDirty: false });
+          updateWindowTitle(dialogResult.filePath, state.sourceFileName, false);
+          get().addToast("Project saved", "success");
+        } else {
+          get().addToast(`Save failed: ${result.error}`, "error");
+        }
+      } catch (err) {
+        get().addToast(`Save failed: ${(err as Error).message}`, "error");
+      }
+    } else {
+      // Browser: same as saveProject
+      await get().saveProject();
     }
   },
 
-  loadProject: () => {
-    try {
-      const raw = localStorage.getItem(PROJECT_STORAGE_KEY);
-      if (!raw) return false;
-      const project = JSON.parse(raw);
-      if (!project.version || !project.sourceDataUrl) return false;
+  openProject: async () => {
+    const api = getElectronAPI();
 
-      const img = new Image();
-      img.onload = () => {
-        const imageData = imageToImageData(img, 2048);
-        const maps = createInitialMaps();
-        for (const type of Object.values(MapType)) {
-          if (project.maps[type]) {
-            maps[type].params = { ...maps[type].params, ...project.maps[type].params };
-            maps[type].enabled = project.maps[type].enabled ?? true;
-            maps[type].generated = project.maps[type].generated ?? false;
-            maps[type].dataUrl = project.maps[type].dataUrl ?? null;
-          }
+    if (api) {
+      const dialogResult = await api.showOpenDialog({
+        title: "Open Project",
+        filters: [PROJECT_FILE_FILTER, { name: "All Files", extensions: ["*"] }],
+        properties: ["openFile"],
+      });
+
+      if (dialogResult.canceled || dialogResult.filePaths.length === 0) return;
+
+      const filePath = dialogResult.filePaths[0];
+      const fileResult = await api.readFile(filePath);
+
+      if (!fileResult.success || !fileResult.data) {
+        get().addToast(`Failed to read file: ${fileResult.error}`, "error");
+        return;
+      }
+
+      const buffer = new Uint8Array(fileResult.data);
+      set({ projectPath: filePath });
+      await loadProjectFile(buffer, set, get);
+    } else {
+      // Browser fallback: file input
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = `.${PROJECT_FILE_EXTENSION}`;
+      input.onchange = async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const buffer = new Uint8Array(arrayBuffer);
+          set({ projectPath: null });
+          await loadProjectFile(buffer, set, get);
+        } catch (err) {
+          get().addToast(`Failed to open project: ${(err as Error).message}`, "error");
         }
-        set({
-          sourceImage: img,
-          sourceImageData: imageData,
-          sourceDataUrl: project.sourceDataUrl,
-          sourceFileName: project.sourceFileName || "restored",
-          sourceWidth: project.sourceWidth || img.naturalWidth,
-          sourceHeight: project.sourceHeight || img.naturalHeight,
-          maps,
-          selectedMap: MapType.Height,
-        });
-        get().addToast("Project restored", "success");
       };
-      img.src = project.sourceDataUrl;
-      return true;
-    } catch (err) {
-      console.error("Failed to load project:", err);
-      return false;
+      input.click();
     }
+  },
+
+  exportSingleMap: async (type: MapType) => {
+    const state = get();
+    const map = state.maps[type];
+    if (!map.imageData) return;
+
+    const api = getElectronAPI();
+    const baseName = state.sourceFileName.replace(/\.[^.]+$/, "") || "texture";
+
+    if (api) {
+      const dialogResult = await api.showSaveDialog({
+        title: `Export ${type} Map`,
+        defaultPath: `${baseName}_${type}.png`,
+        filters: [IMAGE_FILE_FILTER],
+      });
+
+      if (dialogResult.canceled || !dialogResult.filePath) return;
+
+      try {
+        const ext = dialogResult.filePath.toLowerCase().endsWith(".jpg") || dialogResult.filePath.toLowerCase().endsWith(".jpeg")
+          ? "image/jpeg" : "image/png";
+        const blob = await imageDataToBlob(map.imageData, ext);
+        const buffer = await blob.arrayBuffer();
+        const result = await api.writeFile(dialogResult.filePath, buffer);
+        if (result.success) {
+          get().addToast(`Exported ${type} map`, "success");
+        } else {
+          get().addToast(`Export failed: ${result.error}`, "error");
+        }
+      } catch (err) {
+        get().addToast(`Export failed: ${(err as Error).message}`, "error");
+      }
+    } else {
+      // Browser fallback
+      const a = document.createElement("a");
+      a.href = map.dataUrl!;
+      a.download = `${baseName}_${type}.png`;
+      a.click();
+      get().addToast(`Downloaded ${type} map`, "success");
+    }
+  },
+
+  markDirty: () => {
+    const state = get();
+    if (!state.isDirty) {
+      set({ isDirty: true });
+      updateWindowTitle(state.projectPath, state.sourceFileName, true);
+    }
+  },
+
+  setExportModalOpen: (open: boolean) => {
+    set({ exportModalOpen: open });
   },
 
   addToast: (message, type = "info") => {

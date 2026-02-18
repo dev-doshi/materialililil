@@ -305,6 +305,82 @@ ipcMain.handle("app:checkForUpdates", async () => {
   return { success: false, error: "Auto-update disabled in dev mode" };
 });
 
+// ─── File Dialog & I/O Handlers ──────────────────────────────────────────────
+
+// Show native save dialog
+ipcMain.handle("dialog:save", async (_event, options) => {
+  if (!mainWindow) return { canceled: true };
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: options?.title || "Save",
+    defaultPath: options?.defaultPath || undefined,
+    filters: options?.filters || [],
+    properties: options?.properties || [],
+  });
+  return { canceled: result.canceled, filePath: result.filePath || null };
+});
+
+// Show native open dialog
+ipcMain.handle("dialog:open", async (_event, options) => {
+  if (!mainWindow) return { canceled: true };
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: options?.title || "Open",
+    defaultPath: options?.defaultPath || undefined,
+    filters: options?.filters || [],
+    properties: options?.properties || ["openFile"],
+  });
+  return { canceled: result.canceled, filePaths: result.filePaths || [] };
+});
+
+// Write binary data to a file
+ipcMain.handle("file:write", async (_event, filePath, data) => {
+  try {
+    await fs.promises.writeFile(filePath, Buffer.from(data));
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err?.message || "Write failed" };
+  }
+});
+
+// Read binary data from a file
+ipcMain.handle("file:read", async (_event, filePath) => {
+  try {
+    const buffer = await fs.promises.readFile(filePath);
+    return { success: true, data: buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) };
+  } catch (err) {
+    return { success: false, error: err?.message || "Read failed" };
+  }
+});
+
+// Write multiple files to a folder
+ipcMain.handle("file:writeMultiple", async (_event, folderPath, files) => {
+  try {
+    // Ensure folder exists
+    await fs.promises.mkdir(folderPath, { recursive: true });
+    for (const file of files) {
+      const fullPath = path.join(folderPath, file.name);
+      // Ensure subdirectories exist
+      const dir = path.dirname(fullPath);
+      if (dir !== folderPath) {
+        await fs.promises.mkdir(dir, { recursive: true });
+      }
+      await fs.promises.writeFile(fullPath, Buffer.from(file.data));
+    }
+    return { success: true, count: files.length };
+  } catch (err) {
+    return { success: false, error: err?.message || "Write failed" };
+  }
+});
+
+// Set window title
+ipcMain.handle("window:setTitle", (_event, title) => {
+  if (mainWindow) mainWindow.setTitle(title);
+});
+
+// Show item in file manager / reveal in Finder
+ipcMain.handle("shell:showItemInFolder", (_event, filePath) => {
+  shell.showItemInFolder(filePath);
+});
+
 // ─── App Lifecycle ───────────────────────────────────────────────────────────
 app.on("ready", () => {
   if (!isDev) setupStaticServing();
