@@ -19,6 +19,7 @@
 
 # production
 /build
+!/build/icon.*
 
 # electron-builder output
 /dist/

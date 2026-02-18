@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Shield } from "lucide-react";
 
 const TOS_VERSION = "1.0.0";
 const PRIVACY_VERSION = "1.0.0";
@@ -61,7 +60,13 @@ export default function LegalNotice() {
       <div className="bg-zinc-900 rounded-xl border border-zinc-700 w-[90vw] max-w-md overflow-hidden shadow-2xl">
         <div className="px-6 py-5 border-b border-zinc-800">
           <div className="flex items-center gap-3">
-            <Shield className="w-5 h-5 text-amber-400" />
+            <div className="relative w-7 h-7 flex-shrink-0">
+              <div className="absolute inset-0 rounded bg-amber-500/20 rotate-6" />
+              <div className="absolute inset-0 rounded bg-amber-500/40 rotate-3" />
+              <div className="absolute inset-0 rounded bg-amber-500 flex items-center justify-center">
+                <span className="text-black font-bold text-[10px] font-mono">m</span>
+              </div>
+            </div>
             <h2 className="text-base font-semibold text-zinc-100">
               {isUpdate ? "Updated Legal Terms" : "Welcome to materialililil"}
             </h2>

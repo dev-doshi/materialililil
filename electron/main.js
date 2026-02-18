@@ -6,6 +6,7 @@ const {
   shell,
   protocol,
   net,
+  nativeImage,
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
@@ -194,13 +195,28 @@ function setupStaticServing() {
 // ─── Window Creation ─────────────────────────────────────────────────────────
 let mainWindow = null;
 
+// Resolve app icon path (works in both dev and production)
+function getAppIcon() {
+  const iconName = process.platform === "win32" ? "icon.ico" : "icon.png";
+  const devPath = path.join(__dirname, "../build", iconName);
+  const prodPath = path.join(process.resourcesPath, "build", iconName);
+  const iconPath = fs.existsSync(devPath) ? devPath : prodPath;
+  if (fs.existsSync(iconPath)) {
+    return nativeImage.createFromPath(iconPath);
+  }
+  return undefined;
+}
+
 async function createWindow() {
+  const icon = getAppIcon();
+
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
     minWidth: 960,
     minHeight: 600,
     title: APP_NAME,
+    icon,
     backgroundColor: "#0a0a0c",
     titleBarStyle: "hiddenInset",
     trafficLightPosition: { x: 12, y: 12 },
@@ -234,6 +250,11 @@ async function createWindow() {
   }
 
   setupAutoUpdater(mainWindow);
+
+  // Set dock icon on macOS
+  if (process.platform === "darwin" && icon) {
+    app.dock.setIcon(icon);
+  }
 
   mainWindow.on("closed", () => {
     mainWindow = null;
