@@ -33,9 +33,13 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 // ─── Auto-Updater Setup ──────────────────────────────────────────────────────
-autoUpdater.autoDownload = true;
-autoUpdater.autoInstallOnAppQuit = true;
-autoUpdater.forceCodeSigning = false; // App is unsigned — skip code-sign verification
+// On macOS, Squirrel.Mac validates code signatures at the OS level.
+// Since the app is unsigned, we cannot auto-install updates on macOS.
+// Instead we detect new versions and open the download page.
+const isMac = process.platform === "darwin";
+autoUpdater.autoDownload = !isMac; // macOS: notify only; others: download automatically
+autoUpdater.autoInstallOnAppQuit = !isMac;
+autoUpdater.forceCodeSigning = false;
 
 // Log to both console and a file in the app's userData directory
 const logPath = path.join(app.getPath("userData"), "updater.log");
@@ -65,6 +69,27 @@ function setupAutoUpdater(win) {
       version: info.version,
       releaseDate: info.releaseDate,
     });
+
+    // On macOS (unsigned app), prompt user to download from GitHub
+    if (isMac) {
+      dialog
+        .showMessageBox(win, {
+          type: "info",
+          title: `${APP_NAME} Update Available`,
+          message: `Version ${info.version} is available.`,
+          detail:
+            "This app is not code-signed, so automatic updates are not supported on macOS. Would you like to download the new version?",
+          buttons: ["Download", "Later"],
+          defaultId: 0,
+        })
+        .then(({ response }) => {
+          if (response === 0) {
+            shell.openExternal(
+              `https://github.com/dev-doshi/materialililil/releases/latest`
+            );
+          }
+        });
+    }
   });
 
   autoUpdater.on("update-not-available", (info) => {
@@ -87,21 +112,23 @@ function setupAutoUpdater(win) {
       version: info.version,
     });
 
-    // Prompt user to restart
-    dialog
-      .showMessageBox(win, {
-        type: "info",
-        title: `${APP_NAME} Update`,
-        message: `Version ${info.version} has been downloaded.`,
-        detail: "The update will be installed when you restart the app.",
-        buttons: ["Restart Now", "Later"],
-        defaultId: 0,
-      })
-      .then(({ response }) => {
-        if (response === 0) {
-          autoUpdater.quitAndInstall();
-        }
-      });
+    // Only auto-install on non-macOS (macOS uses manual download flow)
+    if (!isMac) {
+      dialog
+        .showMessageBox(win, {
+          type: "info",
+          title: `${APP_NAME} Update`,
+          message: `Version ${info.version} has been downloaded.`,
+          detail: "The update will be installed when you restart the app.",
+          buttons: ["Restart Now", "Later"],
+          defaultId: 0,
+        })
+        .then(({ response }) => {
+          if (response === 0) {
+            autoUpdater.quitAndInstall();
+          }
+        });
+    }
   });
 
   autoUpdater.on("error", (err) => {
