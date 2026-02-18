@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useAppStore } from "@/store/appStore";
 import { MAP_CONFIGS, MAP_CONTROL_DEFS, MapType } from "@/types/maps";
+import { MAP_ICONS } from "@/types/mapIcons";
 import { cn } from "@/lib/utils";
 import { RotateCcw, RefreshCw, Copy, Download, Trash2, Wand2, HelpCircle, ChevronDown, Zap } from "lucide-react";
 
@@ -237,9 +238,12 @@ export default function MapAdjustments() {
       {/* Header */}
       <div className="px-4 py-3 border-b border-zinc-800">
         <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-semibold text-zinc-200">{config.label}</h3>
-            <p className="text-xs text-zinc-500">{config.description}</p>
+          <div className="flex items-center gap-2">
+            {(() => { const Icon = MAP_ICONS[selectedMap]; return <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ backgroundColor: config.color + '20' }}><Icon className="w-4 h-4" style={{ color: config.color }} /></div>; })()}
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-200">{config.label}</h3>
+              <p className="text-xs text-zinc-500">{config.description}</p>
+            </div>
           </div>
           <div className="flex items-center gap-1.5">
             <button
@@ -265,10 +269,6 @@ export default function MapAdjustments() {
             >
               <HelpCircle className="w-3.5 h-3.5" />
             </button>
-            <div
-              className="w-4 h-4 rounded-full border border-zinc-600"
-              style={{ backgroundColor: config.color }}
-            />
           </div>
         </div>
         {showExplanation && (

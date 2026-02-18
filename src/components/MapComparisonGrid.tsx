@@ -3,8 +3,9 @@
 import React, { useMemo, useState } from "react";
 import { useAppStore } from "@/store/appStore";
 import { MAP_CONFIGS, MapType } from "@/types/maps";
+import { MAP_ICONS } from "@/types/mapIcons";
 import { cn } from "@/lib/utils";
-import { Grid2X2, Download, RefreshCw, Trash2, DownloadCloud, Eye, EyeOff } from "lucide-react";
+import { Grid2X2, Download, RefreshCw, Trash2, DownloadCloud, Eye, EyeOff, Image } from "lucide-react";
 
 export default function MapComparisonGrid() {
   const maps = useAppStore((s) => s.maps);
@@ -181,9 +182,10 @@ export default function MapComparisonGrid() {
             </div>
 
             <div
-              className="absolute top-1 left-1 w-2 h-2 rounded-full"
-              style={{ backgroundColor: item.color }}
-            />
+              className="absolute top-1 left-1 flex items-center justify-center w-4 h-4 rounded bg-black/60"
+            >
+              {item.type !== null ? (() => { const Icon = MAP_ICONS[item.type]; return <Icon className="w-2.5 h-2.5" style={{ color: item.color }} />; })() : <Image className="w-2.5 h-2.5 text-blue-400" />}
+            </div>
           </div>
         ))}
       </div>

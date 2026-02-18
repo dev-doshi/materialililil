@@ -3,8 +3,9 @@
 import React, { useMemo } from "react";
 import { useAppStore } from "@/store/appStore";
 import { MAP_CONFIGS, MapType } from "@/types/maps";
+import { MAP_ICONS } from "@/types/mapIcons";
 import { cn } from "@/lib/utils";
-import { Palette } from "lucide-react";
+import { Grid2X2 } from "lucide-react";
 
 /** A compact multi-map side-by-side comparison with a user-selectable set */
 export default function MapMiniGrid() {
@@ -39,7 +40,7 @@ export default function MapMiniGrid() {
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <Palette className="w-3.5 h-3.5 text-zinc-500" />
+          <Grid2X2 className="w-3.5 h-3.5 text-zinc-500" />
           <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Mini Grid</span>
         </div>
       </div>
@@ -97,14 +98,17 @@ export default function MapMiniGrid() {
             {map.dataUrl ? (
               <img src={map.dataUrl} alt={config.label} className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full bg-zinc-900 flex items-center justify-center" style={{ backgroundColor: config.color + "08" }}>
-                <span className="text-[8px] text-zinc-600">{config.label.replace(" Map", "")}</span>
+              <div className="w-full h-full bg-zinc-900 flex flex-col items-center justify-center gap-0.5" style={{ backgroundColor: config.color + "08" }}>
+                {(() => { const Icon = MAP_ICONS[type]; return <Icon className="w-3.5 h-3.5" style={{ color: config.color + '60' }} />; })()}
+                <span className="text-[7px] text-zinc-600">{config.label.replace(" Map", "")}</span>
               </div>
             )}
             <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-1 py-0.5 text-[7px] text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity">
               {config.label.replace(" Map", "")}
             </div>
-            <div className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: config.color }} />
+            <div className="absolute top-0.5 right-0.5 flex items-center justify-center w-3.5 h-3.5 rounded-sm bg-black/50">
+              {(() => { const Icon = MAP_ICONS[type]; return <Icon className="w-2.5 h-2.5" style={{ color: config.color }} />; })()}
+            </div>
           </button>
         ))}
       </div>

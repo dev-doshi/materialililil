@@ -3,6 +3,7 @@
 import React, { useState, useCallback } from "react";
 import { useAppStore } from "@/store/appStore";
 import { MapType, MAP_CONFIGS } from "@/types/maps";
+import { MAP_ICONS } from "@/types/mapIcons";
 import { cn } from "@/lib/utils";
 import { Copy, ClipboardPaste, RotateCcw, ArrowRight } from "lucide-react";
 
@@ -71,7 +72,7 @@ export default function MapParamsCopyPaste() {
                 onClick={() => handlePaste(config.type)}
                 className="flex items-center gap-1 px-2 py-1 rounded border border-zinc-800 text-[10px] text-zinc-400 hover:border-zinc-700 hover:text-zinc-200 transition-colors text-left"
               >
-                <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ backgroundColor: config.color + "60" }} />
+                {(() => { const Icon = MAP_ICONS[config.type]; return <Icon className="w-3 h-3 flex-shrink-0" style={{ color: config.color }} />; })()}
                 <span className="truncate">{config.label.replace(" Map", "")}</span>
               </button>
             ))}

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useAppStore } from "@/store/appStore";
 import { EXPORT_PRESETS, MapType, MAP_CONFIGS } from "@/types/maps";
+import { MAP_ICONS } from "@/types/mapIcons";
 import { imageDataToBlob } from "@/engine/algorithms";
 import { zipSync, strToU8 } from "fflate";
 import { saveAs } from "file-saver";
@@ -302,7 +303,7 @@ ${exportedNames.map((n) => `- ${n}`).join("\n")}
                     {isGenerated ? (
                       <Check className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
                     ) : (
-                      <div className="w-3.5 h-3.5 rounded-full border border-zinc-600 flex-shrink-0" />
+                      (() => { const Icon = MAP_ICONS[mapDef.type]; return <Icon className="w-3.5 h-3.5 flex-shrink-0 text-zinc-600" />; })()
                     )}
                     <span className="truncate">{config?.label}</span>
                     <span className="text-xs text-zinc-600 ml-auto flex-shrink-0">{mapDef.suffix}</span>

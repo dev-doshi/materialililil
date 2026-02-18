@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useAppStore } from "@/store/appStore";
 import { MAP_CONFIGS, MapType } from "@/types/maps";
+import { MAP_ICONS } from "@/types/mapIcons";
 import { cn } from "@/lib/utils";
 import { Loader2, Sparkles, Wand2, Zap, Building, CheckSquare, Square, Download } from "lucide-react";
 
@@ -206,10 +207,7 @@ export default function QuickGenerate() {
               {map.generating ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
-                <div
-                  className="w-3.5 h-3.5 rounded-sm"
-                  style={{ backgroundColor: config.color + "40", border: `1px solid ${config.color}60` }}
-                />
+                (() => { const Icon = MAP_ICONS[config.type]; return <Icon className="w-3.5 h-3.5" style={{ color: config.color }} />; })()
               )}
               <span className="truncate w-full text-center">{config.label.replace(" Map", "")}</span>
             </button>

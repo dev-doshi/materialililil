@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useAppStore } from "@/store/appStore";
 import { MAP_CONFIGS, MapType } from "@/types/maps";
+import { MAP_ICONS } from "@/types/mapIcons";
 import { cn } from "@/lib/utils";
 import {
   Eye,
@@ -337,13 +338,10 @@ export default function MapList() {
                   />
                 ) : (
                   <div
-                    className="w-full h-full flex items-center justify-center text-zinc-600"
+                    className="w-full h-full flex items-center justify-center"
                     style={{ backgroundColor: config.color + "15" }}
                   >
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: config.color + "40" }}
-                    />
+                    {(() => { const Icon = MAP_ICONS[config.type]; return <Icon className="w-4 h-4" style={{ color: config.color + "80" }} />; })()}
                   </div>
                 )}
               </div>
